@@ -21,19 +21,20 @@ import numpy as np
 from cache_replacement.policy_learning.cache import eviction_policy as eviction_policy_mod
 from cache_replacement.policy_learning.cache_model import eviction_policy as model_eviction_policy_mod
 from cache_replacement.policy_learning.common import config as cfg
+from cache_replacement.policy_learning.common.utils import wrt_txt as wrtxt
+from absl import logging
 
 
 class CacheSet(object):
   """A set of cache lines in cache. Evicts according to the eviction policy."""
 
-  def __init__(self, set_id, num_cache_lines, eviction_policy,
-               access_history_len=30):
+  def __init__(self, set_id, num_cache_lines, eviction_policy, access_history_len=30):
     """Constructs.
 
     Args:
       set_id (int): ID of this set (value of set bits corresponding to this
         set).
-      num_cache_lines (int): Number of cache lines in the set.
+      num_cache_lines (int): Number of cache lines in the set. ## set associativity
       eviction_policy (EvictionPolicy): determines what cache lines to evict
         during reads.
       access_history_len (int): returns an access history of this length in the
@@ -81,8 +82,9 @@ class CacheSet(object):
 
       # Receive cache_line_scores for observers, even if cache line is evicted.
       # Needs to happen BEFORE the access_times is updated.
-      line_to_evict, cache_line_scores = self._eviction_policy(
-          cache_access, self._access_times)
+      ## 呼叫 cache.eviction_policy.py MixturePolicy 的 __call__
+      line_to_evict, cache_line_scores = self._eviction_policy(cache_access, self._access_times)
+      # wrtxt('1.txt', cache_access, line_to_evict)
 
       self._read_counter += 1
       self._access_times[address] = self._read_counter
@@ -92,7 +94,7 @@ class CacheSet(object):
         self._cache_lines[address] = pc
         return True, EvictionDecision(False, cache_line_scores)
 
-      evict = len(self._cache_lines) == self._num_cache_lines
+      evict = len(self._cache_lines) == self._num_cache_lines ## default: 16(16-way set associative)
       eviction_decision = EvictionDecision(evict, cache_line_scores)
       if evict:
         del self._cache_lines[line_to_evict]
@@ -128,8 +130,7 @@ class Cache(object):
   """A hierarchical cache. Reads from child cache if data not present."""
 
   @classmethod
-  def from_config(cls, config, eviction_policy=None, trace=None,
-                  hit_rate_statistic=None):
+  def from_config(cls, config, eviction_policy=None, trace=None, hit_rate_statistic=None):
     """Constructs Cache from config.
 
     Args:
@@ -228,6 +229,10 @@ class Cache(object):
 
     num_cache_lines = cache_capacity // cache_line_size
     num_sets = num_cache_lines // associativity
+    logging.info('Cache capacity: %s', cache_capacity)
+    logging.info('Cache line size: %s', cache_line_size)
+    logging.info('Num_cache_lines: %s', num_cache_lines)
+    logging.info('Num_sets: %s', num_sets)
 
     if (cache_capacity % cache_line_size != 0 or
         num_cache_lines % associativity != 0):
@@ -291,7 +296,7 @@ class Cache(object):
     Returns:
       hit (bool): True if data was already in the cache.
     """
-    aligned_address, set_id = self._align_address(address)
+    aligned_address, set_id = self._align_address(address) ## aligned addr 已右移 cache line size的bit數
     hit = self._sets[set_id].read(pc, aligned_address, observers=observers)
     if not hit and self._child_cache is not None:
       self._child_cache.read(pc, address)
@@ -327,6 +332,7 @@ class Cache(object):
 
 class BernoulliProcessStatistic(object):
   """Tracks results of Bernoulli trials."""
+  ## 伯努利試驗 只有兩種可能的結果
 
   def __init__(self):
     self.reset()
@@ -336,7 +342,7 @@ class BernoulliProcessStatistic(object):
     if success:
       self._successes += 1
 
-  @property
+  @property  ## 只能讀取
   def num_trials(self):
     return self._trials
 

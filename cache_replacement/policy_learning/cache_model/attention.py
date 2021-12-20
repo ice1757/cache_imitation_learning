@@ -120,11 +120,11 @@ class GeneralAttention(Attention):
     """
     super().__init__()
     if weight_initializer is None:
-      weight_initializer = nn.init.xavier_uniform_
+      weight_initializer = nn.init.xavier_uniform_ ## 權值初始化
 
     w = torch.zeros(query_dim, memory_key_dim)
     weight_initializer(w)
-    self._w = nn.Parameter(w)
+    self._w = nn.Parameter(w) ## Parameter會自動作為model中可訓練的參數
 
   def _score(self, queries, memory_keys):
     # (batch_size, 1, query_dim)

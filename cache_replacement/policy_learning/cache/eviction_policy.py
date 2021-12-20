@@ -19,6 +19,8 @@ import abc
 import heapq
 import numpy as np
 import six
+from absl import logging
+from cache_replacement.policy_learning.common.utils import wrt_txt as wrtxt
 
 
 class EvictionPolicy(six.with_metaclass(abc.ABCMeta, object)):
@@ -61,6 +63,7 @@ class GreedyEvictionPolicy(EvictionPolicy):
     self._n = n
 
   def __call__(self, cache_access, access_times):
+    ## 根據選到的scorer(belady or PARROT) 進去執行
     scores = self._cache_line_scorer(cache_access, access_times)
     sorted_cache_lines = heapq.nsmallest(
         self._n + 1, scores.keys(), key=lambda line: scores[line])
@@ -105,8 +108,7 @@ class MixturePolicy(EvictionPolicy):
 
     if scoring_policy_index is not None and not (
         0 <= scoring_policy_index < len(policies)):
-      raise ValueError(
-          "Invalid scoring policy index: {}".format(scoring_policy_index))
+      raise ValueError("Invalid scoring policy index: {}".format(scoring_policy_index))
 
     self._policies = policies
     self._weights = weights
@@ -114,10 +116,10 @@ class MixturePolicy(EvictionPolicy):
     self._scoring_policy_index = scoring_policy_index
 
   def __call__(self, cache_access, access_times):
-    policy = self._random.choice(self._policies, p=self._weights)
-    line_to_evict, scores = policy(cache_access, access_times)
+    policy = self._random.choice(self._policies, p=self._weights) ## 從bela
+    line_to_evict, scores = policy(cache_access, access_times)    ## 會先呼叫上面的 GreedyEvictionPolicy __call__
     if self._scoring_policy_index is not None:
-      scoring_policy = self._policies[self._scoring_policy_index]
+      scoring_policy = self._policies[self._scoring_policy_index] ## = 0 就是beladyScorer
       _, scores = scoring_policy(cache_access, access_times)
     return line_to_evict, scores
 
@@ -199,6 +201,6 @@ class BeladyScorer(CacheLineScorer):
   def __call__(self, cache_access, access_times):
     del access_times
 
-    scores = {line: -self._memtrace.next_access_time(line) for
-              (line, _) in cache_access.cache_lines}
+    scores = {line: -self._memtrace.next_access_time(line) for ## memtrace.py 的 next_access_time
+              (line, _) in cache_access.cache_lines} 
     return scores

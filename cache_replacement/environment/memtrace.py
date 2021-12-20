@@ -23,6 +23,7 @@ import os
 import numpy as np
 import six
 import tqdm
+from absl import logging
 
 
 class MemoryTrace(object):
@@ -60,6 +61,7 @@ class MemoryTrace(object):
     # Without this optimization, the StopIteration is caught max_look_ahead
     # times.
     self._reader_exhausted = False
+    self.cntaddr = set()
 
   def _read_next(self):
     """Adds the next row in the CSV memory trace to the look-ahead buffer.
@@ -72,10 +74,12 @@ class MemoryTrace(object):
     try:
       pc, address = self._reader.next()
       self._look_ahead_buffer.append((pc, address))
+      self.cntaddr.add(address)
       # Align to cache line
       self._access_times[address >> self._offset_bits].append(
           len(self._look_ahead_buffer) + self._num_next_calls)
     except StopIteration:
+      logging.info("Number of Unique Address: {}".format(len(self.cntaddr)))
       self._reader_exhausted = True
 
   def next(self):

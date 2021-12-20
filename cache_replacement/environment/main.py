@@ -23,13 +23,18 @@ import numpy as np
 import policy
 import s4lru
 import tqdm
+from absl import app
+from absl import logging
 
-if __name__ == "__main__":
+def main(_):
   parser = argparse.ArgumentParser()
-  parser.add_argument("policy_type", help="type of replacement policy to use")
+  parser.add_argument('policy_type', default='belady', help="type of replacement policy to use")
+  parser.add_argument('trace_name', default='sample_trace.csv', help="trace csv name")
   args = parser.parse_args()
+  ## sample_trace test  test_30000 test_1000
+  trace_path = "./trace/"+args.trace_name
 
-  trace_path = "traces/sample_trace.csv"
+  ## example_cache_config  spec_llc
   config = cfg.Config.from_files_and_bindings(["spec_llc.json"], [])
   env = environment.CacheReplacementEnv(config, trace_path, 0)
 
@@ -47,6 +52,13 @@ if __name__ == "__main__":
   else:
     raise ValueError(f"Unsupported policy type: {args.policy_type}")
 
+  # method = []
+  # method.append(belady.BeladyPolicy)
+  # method.append(policy.LRU())
+  # method.append(s4lru.S4LRU(config.get("associativity")))
+  # method.append(belady.BeladyNearestNeighborsPolicy(train_env))
+  # method.append(policy.RandomPolicy(np.random.RandomState(0)))
+  
   state = env.reset()
   total_reward = 0
   steps = 0
@@ -59,5 +71,9 @@ if __name__ == "__main__":
       pbar.update(1)
       if done:
         break
-
+  
+  print("Trace name: {}".format(trace_path))
   print("Cache hit rate: {:.4f}".format(total_reward / steps))
+
+if __name__ == "__main__":
+  app.run(main)

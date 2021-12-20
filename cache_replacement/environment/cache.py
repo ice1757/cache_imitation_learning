@@ -17,6 +17,7 @@
 """Defines a simple cache."""
 
 import numpy as np
+from absl import logging
 
 
 class CacheSet(object):
@@ -142,6 +143,8 @@ class Cache(object):
     self._cache_line_bits = cache_line_bits
     self._child_cache = child_cache
 
+    logging.info("_sets: {}, _set_bits: {}, _cache_line_bits: {}".format(len(self._sets), set_bits, cache_line_bits))
+
   def _align_address(self, address):
     """Returns the cache line aligned address and the corresponding set id.
 
@@ -152,7 +155,7 @@ class Cache(object):
       aligned_address (int): aligned with the size of the cache lines.
       set_id (int): the set this cache-line belongs to.
     """
-    aligned_address = address >> self._cache_line_bits
+    aligned_address = address >> self._cache_line_bits ## 除 2 的 6 次方 
     set_id = aligned_address & ((1 << self._set_bits) - 1)
     return aligned_address, set_id
 
@@ -179,6 +182,7 @@ class Cache(object):
         outer list corresponds to the i-th level grandchild.
     """
     aligned_address, set_id = self._align_address(address)
+    # logging.info("before addr: {}, after addr:{}, set id: {}".format(address, aligned_address, set_id))
     hit, evict = self._sets[set_id].access(aligned_address)
     evicts = [evict]
     lines = [list(self._sets[set_id].contents())]

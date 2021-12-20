@@ -21,6 +21,7 @@ import abc
 import numpy as np
 from scipy import stats
 from cache_replacement.policy_learning.cache_model import utils
+from absl import logging
 
 
 class CacheEvictionMetric(abc.ABC):
@@ -64,7 +65,7 @@ class SuccessRateMetric(CacheEvictionMetric):
     tb_tag/total_top_i for i = 1, ..., k
   """
 
-  def __init__(self, k):
+  def __init__(self, k): ## default k = 5
     """Sets the value of k to track up to.
 
     Args:
@@ -83,8 +84,7 @@ class SuccessRateMetric(CacheEvictionMetric):
       top_i_successes = (
           prediction_probs[:, 0] >= sorted_probs[:, min(i, num_elems - 1)])
       self._num_top_i_successes["total"][i] += top_i_successes.sum().item()
-      self._num_top_i_successes["eviction"][i] += (
-          eviction_mask * top_i_successes).sum().item()
+      self._num_top_i_successes["eviction"][i] += (eviction_mask * top_i_successes).sum().item()
 
     self._num_accesses["total"] += prediction_probs.shape[0]
     self._num_accesses["eviction"] += eviction_mask.sum().item()

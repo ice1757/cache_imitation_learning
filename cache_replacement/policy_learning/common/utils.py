@@ -30,3 +30,9 @@ def create_experiment_directory(path, overwrite=False):
       raise ValueError(
           "Experiment directory: {} already exists.".format(path))
   os.makedirs(path)
+
+## (加)
+def wrt_txt(path, *value):
+    f = open(path, 'a')
+    for i in value:
+      f.write(str(i)+'\n-----------------\n')

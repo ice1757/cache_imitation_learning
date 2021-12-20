@@ -40,8 +40,14 @@ import sys
 import cache as cache_mod
 import gym
 import memtrace as memtrace_mod
+from absl import logging
 
 
+def wrt_txt(path, value):
+    f = open(path, 'a')
+    # for i in value:
+        # f.writelines(str(round(i, 2))+"\n")
+    f.writelines(str(value)+"\n")
 class State(collections.namedtuple(
     "State", ("access", "cache_lines", "access_history", "set_id", "evict"))):
   """Represents the state s_t.
@@ -125,6 +131,11 @@ class CacheReplacementEnv(gym.Env):
     pc, address = self._memtrace.next()
     aligned_address, hit, evicts, lines, set_ids = self._cache.access(address)
 
+    # wrt_txt('r1.txt', "addr1:{}, addr2: {}, set_ids: {}, hit: {}".format(address, aligned_address, set_ids, hit))
+    # wrt_txt('r1.txt', "line: {}".format(lines))
+    # logging.info("addr1:{}, addr2: {}, set_ids: {}, hit: {}".format(address, aligned_address, set_ids, hit))
+    # logging.info("line: {}".format(lines))
+
     # Copy, so doesn't get modified in place
     access_history = list(self._set_access_history[set_ids[0]])
     state = State(
@@ -139,6 +150,7 @@ class CacheReplacementEnv(gym.Env):
 
   def render(self, mode="human"):
     """Prints a text representation of the cache."""
+    # wrt_txt("cache-record.txt", self._cache)
     print(self._cache)
 
   def next_access_time(self, address):

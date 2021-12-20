@@ -29,6 +29,7 @@ from cache_replacement.policy_learning.cache_model import attention
 from cache_replacement.policy_learning.cache_model import embed
 from cache_replacement.policy_learning.cache_model import loss as L
 from cache_replacement.policy_learning.cache_model import utils
+from cache_replacement.policy_learning.common.utils import wrt_txt as wrtxt
 
 
 class EvictionPolicyModel(nn.Module):
@@ -69,7 +70,7 @@ class EvictionPolicyModel(nn.Module):
     }
     loss_fns = {loss_type: supported[loss_type]()
                 for loss_type in config.get("loss")}
-
+    
     return cls(pc_embedder, address_embedder, cache_line_embedder,
                positional_embedder, config.get("lstm_hidden_size"),
                config.get("max_attention_history"), loss_fns,
@@ -115,22 +116,23 @@ class EvictionPolicyModel(nn.Module):
     self._cache_line_embedder = cache_line_embedder
     self._cache_pc_embedder = cache_pc_embedder
     self._lstm_cell = nn.LSTMCell(
-        pc_embedder.embed_dim + address_embedder.embed_dim, lstm_hidden_size)
+        pc_embedder.embed_dim + address_embedder.embed_dim, lstm_hidden_size) ## (input size, hidden size)
     self._positional_embedder = positional_embedder
 
-    query_dim = cache_line_embedder.embed_dim
+    query_dim = cache_line_embedder.embed_dim ## address_embedder.embed_dim = 64
     if cache_pc_embedder is not None:
       query_dim += cache_pc_embedder.embed_dim
     self._history_attention = attention.MultiQueryAttention(
-        attention.GeneralAttention(query_dim, lstm_hidden_size))
+        attention.GeneralAttention(query_dim, lstm_hidden_size))   ##(64, 128)
     # f(h, e(l))
     self._cache_line_scorer = nn.Linear(
-        lstm_hidden_size + self._positional_embedder.embed_dim, 1)
+        lstm_hidden_size + self._positional_embedder.embed_dim, 1) ## 128+128, 1
 
     self._reuse_distance_estimator = nn.Linear(
-        lstm_hidden_size + self._positional_embedder.embed_dim, 1)
+        lstm_hidden_size + self._positional_embedder.embed_dim, 1) ## 128+128, 1
 
     # Needs to be capped because of limited GPU memory
+    ## default = 30
     self._max_attention_history = max_attention_history
 
     if loss_fns is None:
@@ -183,7 +185,7 @@ class EvictionPolicyModel(nn.Module):
 
     # Each (batch_size, hidden_size)
     next_c, next_h = self._lstm_cell(
-        torch.cat((pc_embedding, address_embedding), -1), hidden_state)
+        torch.cat((pc_embedding, address_embedding), -1), hidden_state) ## -1 ???
 
     if inference:
       next_c = next_c.detach()
@@ -209,32 +211,35 @@ class EvictionPolicyModel(nn.Module):
     # (batch_size, num_cache_lines, embed_dim)
     cache_line_embeddings = self._cache_line_embedder(cache_addresses).view(
         batch_size, num_cache_lines, -1)
-    if self._cache_pc_embedder is not None:
+    if self._cache_pc_embedder is not None: ## default = None
       cache_pc_embeddings = self._cache_pc_embedder(cache_pcs).view(
           batch_size, num_cache_lines, -1)
       cache_line_embeddings = torch.cat(
           (cache_line_embeddings, cache_pc_embeddings), -1)
 
     # (batch_size, history_len, hidden_size)
-    history_tensor = torch.stack(list(hidden_state_history), dim=1)
+    history_tensor = torch.stack(list(hidden_state_history), dim=1) ## len = 30
 
     # (batch_size, history_len, positional_embed_size)
     positional_embeds = self._positional_embedder(
         list(range(len(hidden_state_history)))).expand(batch_size, -1, -1)
 
-    # attention_weights: (batch_size, num_cache_lines, history_len)
-    # context: (batch_size, num_cache_lines, hidden_size + pos_embed_size)
+    # attention_weights: (batch_size, num_cache_lines, history_len)        (32, 4, 30)
+    # context: (batch_size, num_cache_lines, hidden_size + pos_embed_size) (32, 4, 256)
     attention_weights, context = self._history_attention(
         history_tensor, torch.cat((history_tensor, positional_embeds), -1),
         cache_line_embeddings)
 
     # (batch_size, num_cache_lines)
-    scores = F.softmax(self._cache_line_scorer(context).squeeze(-1), -1)
+    ## scores/probs shape = (32, 4)
+    ## F.softmax(xxx, dim = -1) -1即倒數1
+    scores = F.softmax(self._cache_line_scorer(context).squeeze(-1), -1) ## squeeze 壓縮維度/softmax 0~1
     probs = utils.mask_renormalize(scores, mask)
 
+    ## pred_reuse_dis=(32 ,4)
     pred_reuse_distances = self._reuse_distance_estimator(context).squeeze(-1)
     # Return reuse distances as scores if probs aren't being trained.
-    if len(self._loss_fns) == 1 and "reuse_dist" in self._loss_fns:
+    if len(self._loss_fns) == 1 and "reuse_dist" in self._loss_fns: ## default 不做
       probs = torch.max(
           pred_reuse_distances, torch.ones_like(
               pred_reuse_distances) * 1e-5) * mask.float()
@@ -394,7 +399,7 @@ class ApproxNDCGLoss(LossFunction):
 
   def __init__(self):
     super().__init__()
-    logging.warning("Expects that all calls to loss are labeled with Belady's")
+    logging.warning("Expects that all calls to loss are labeled with Belady's(NDCGLoss)")
 
   def __call__(self, probs, predicted_log_reuse_distances,
                true_log_reuse_distances, mask):
@@ -408,7 +413,7 @@ class ReuseDistanceLoss(LossFunction):
 
   def __init__(self):
     super().__init__()
-    logging.warning("Expects that all calls to loss are labeled with Belady's")
+    logging.warning("Expects that all calls to loss are labeled with Belady's(ReuseDistLoss)")
 
   def __call__(self, probs, predicted_log_reuse_distances,
                true_log_reuse_distances, mask):
