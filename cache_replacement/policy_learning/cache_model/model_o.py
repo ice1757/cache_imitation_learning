@@ -115,7 +115,8 @@ class EvictionPolicyModel(nn.Module):
     self._address_embedder = address_embedder
     self._cache_line_embedder = cache_line_embedder
     self._cache_pc_embedder = cache_pc_embedder
-    self._lstm_cell = nn.LSTMCell(address_embedder.embed_dim, lstm_hidden_size) ## (input size, hidden size) (64, 64)
+    self._lstm_cell = nn.LSTMCell(
+        pc_embedder.embed_dim + address_embedder.embed_dim, lstm_hidden_size) ## (input size, hidden size)
     self._positional_embedder = positional_embedder
 
     query_dim = cache_line_embedder.embed_dim ## address_embedder.embed_dim = 64
@@ -177,14 +178,14 @@ class EvictionPolicyModel(nn.Module):
     else:
       hidden_state, hidden_state_history, access_history = prev_hidden_state
 
-    # pc_embedding = self._pc_embedder(
-    #     [cache_access.pc for cache_access in cache_accesses])
+    pc_embedding = self._pc_embedder(
+        [cache_access.pc for cache_access in cache_accesses])
     address_embedding = self._address_embedder(
         [cache_access.address for cache_access in cache_accesses])
 
     # Each (batch_size, hidden_size)
     next_c, next_h = self._lstm_cell(
-        (address_embedding), hidden_state) ## -1 ???
+        torch.cat((pc_embedding, address_embedding), -1), hidden_state) ## -1 ???
 
     if inference:
       next_c = next_c.detach()

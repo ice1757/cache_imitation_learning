@@ -17,7 +17,7 @@
     "embed_dim": 128
   },
 
-  "lstm_hidden_size": 128,
+  "lstm_hidden_size": 64,
   "max_attention_history": 30,
   "sequence_length": 80,
   "loss": [

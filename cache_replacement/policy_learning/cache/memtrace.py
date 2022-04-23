@@ -24,6 +24,8 @@ import numpy as np
 import six
 import tqdm
 from cache_replacement.policy_learning.common.utils import wrt_txt as wrtxt
+from absl import logging
+
 
 
 class MemoryTrace(object):
@@ -32,7 +34,7 @@ class MemoryTrace(object):
     Should be used in a with block.
     """
 
-    def __init__(self, filename, max_look_ahead=int(1e7), cache_line_size=64):
+    def __init__(self, filename, max_look_ahead=int(1e4), cache_line_size=64):
         """Constructs from a file containing the memory trace.
 
         Args:
@@ -181,8 +183,8 @@ class CSVReader(MemoryTraceReader):
         # Raises StopIteration when CSV reader is eof
         pc, address = next(self._csv_reader)
         # Convert hex string to int
-        return int(pc, 16), int(address, 16)
-        # return int('0x0', 16), int(address, 16)
+        # return int(pc, 16), int(address, 16)
+        return int('0x00', 16), int(address, 16)
 
 
 class TxtReader(MemoryTraceReader):

@@ -31,6 +31,16 @@
   cd /cache_replacement/gen_zipf
   python gen_zipf.py <路徑> <address 種類> <accesses 數量> <trace 數量>
   ```
+- 相關 trace 會存在"cache_imitation_learning/cache_replacement/policy_learning/cache/traces"
+
+# Cache Size
+- 若需要調整 cache size
+  1. 需修改 cache_imitation_learning/cache_replacement/policy_learning/cache/configs/default.json
+  2. 修改公式：
+      - cache size = associativity = cache_line_size * associativity
+      - Ex. cache size = 10 需修改  
+      capacity = 640  
+      associativity = 10
 
 # Cache Replacement Algorithm
 - Simple Cache Replacement Algorithm Test

@@ -84,7 +84,6 @@ class CacheSet(object):
       # Needs to happen BEFORE the access_times is updated.
       ## 呼叫 cache.eviction_policy.py MixturePolicy 的 __call__
       line_to_evict, cache_line_scores = self._eviction_policy(cache_access, self._access_times)
-      # wrtxt('1.txt', cache_access, line_to_evict)
 
       self._read_counter += 1
       self._access_times[address] = self._read_counter
@@ -116,7 +115,7 @@ class CacheSet(object):
     return hit
 
   def __str__(self):
-    cache_lines = [str((hex(line), hex(pc)))
+    cache_lines = [str((hex(line)))
                    for line, pc in self._cache_lines.items()]
     cache_lines += ["empty"] * (self._num_cache_lines - len(self._cache_lines))
 
@@ -227,7 +226,7 @@ class Cache(object):
       raise ValueError("Cache line size ({}) must be a power of two."
                        .format(cache_line_size))
 
-    num_cache_lines = cache_capacity // cache_line_size
+    num_cache_lines = cache_capacity // cache_line_size   # 1024/64
     num_sets = num_cache_lines // associativity
     logging.info('Cache capacity: %s', cache_capacity)
     logging.info('Cache line size: %s', cache_line_size)
@@ -276,8 +275,8 @@ class Cache(object):
       aligned_address (int): aligned with the size of the cache lines.
       set_id (int): the set this cache-line belongs to.
     """
-    aligned_address = address >> self._cache_line_bits
-    set_id = aligned_address & ((1 << self._set_bits) - 1)
+    aligned_address = address # >> self._cache_line_bits
+    set_id = 0 # aligned_address & ((1 << self._set_bits) - 1)
     return aligned_address, set_id
 
   def read(self, pc, address, observers=None):

@@ -73,19 +73,19 @@ flags.DEFINE_string(
     " experiment_base_dir/experiment_name.")
 flags.DEFINE_integer("batch_size", 32, "Size of model input batches.")
 flags.DEFINE_integer( # 1e6
-    "total_steps", int(1e6), "Number of training steps to take.")
+    "total_steps", int(48000), "Number of training steps to take.")
 flags.DEFINE_integer("tb_freq", 100, "Steps between logging to tensorboard.")
 flags.DEFINE_integer( # 30000
-    "small_eval_size", 30000,
+    "small_eval_size", 3000,
     "Number of examples to evaluate on in small evaluations.")
 flags.DEFINE_integer( # 4000
-    "small_eval_freq", 4000,
+    "small_eval_freq", 400,
     "Steps between evaluating on small_eval_size examples of validation data.")
 flags.DEFINE_integer( # 48000
-    "full_eval_freq", 48000,
+    "full_eval_freq", 4800,
     "Steps between evaluating on ALL of validation data.")
 flags.DEFINE_integer( # 20000
-    "save_freq", 20000, "Steps between saving model checkpoints.")
+    "save_freq", 2000, "Steps between saving model checkpoints.")
 flags.DEFINE_integer(
     "collection_multiplier", 5,
     ("This times more training data is collected than updated on to avoid"
