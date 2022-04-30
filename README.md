@@ -25,19 +25,40 @@
 	```
 # Collecting Traces
 - [generate program memory trace](https://github.com/google-research/google-research/tree/master/cache_replacement#collecting-traces)
-- generate zipf
-  ```
+- ```
   # Current Working directory is cache_imitaion_learning
-  cd /cache_replacement/gen_zipf
-  python gen_zipf.py <路徑> <address 種類> <accesses 數量> <trace 數量>
+  cd /cache_replacement/gen_trace
   ```
-- 相關 trace 會存在"cache_imitation_learning/cache_replacement/policy_learning/cache/traces"
+- generate zipf trace
+  - change rank
+  ```
+  python gen_zipf_c_rank.py \
+    --dataset_name=<檔案名稱> \
+    --req_kind=<request種類> \
+    --length=<request長度> \
+    --zipf_para=<zipf參數> \
+    --change_rank=<rank變化週期>
+  ```
+  - change zipf parameter
+  ```
+  python gen_zipf_c_para.py \
+    --dataset_name=<檔案名稱> \
+    --req_kind=<request種類> \
+    --length=<request長度> \
+    --zipf_para=<zipf起始參數>
+  ```
+- generate snm trace
+  ```
+  python snm_1.py
+  ```
+- 產生的 trace 需移至"cache_imitation_learning/cache_replacement/policy_learning/cache/traces"
 
 # Cache Size
 - 若需要調整 cache size
   1. 需修改 cache_imitation_learning/cache_replacement/policy_learning/cache/configs/default.json
   2. 修改公式：
-      - cache size = associativity = cache_line_size * associativity
+      - capacity = cache_line_size * associativity
+      - cache size = associativity
       - Ex. cache size = 10 需修改  
       capacity = 640  
       associativity = 10
