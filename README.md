@@ -211,34 +211,5 @@ python -m cache_replacement.policy_learning.cache_model.main \
   --valid_memtrace=cache_replacement/policy_learning/cache/traces/sample_trace.csv
 ```
 
-# Evaluating the Learned Policy
-
-The commands for training the Parrot policy in the previous section also
-periodically save model checkpoints.
-Below, we provide commands for evaluating the saved checkpoints on a test set.
-In the paper, we choose the checkpoint with the highest validation cache hit
-rate, which can be done by inspecting the tensorboard files in the training
-directory `/tmp/sample_model_llc`.
-The following command evaluates the model checkpoint saved after 20000 steps on
-the trace `cache_replacement/policy_learning/cache/traces/sample_trace.csv`:
-
-```
-# Current working directory is cache_imitation_learning
-python -m cache_replacement.policy_learning.cache.main \
-  --experiment_base_dir=/tmp \
-  --experiment_name=evaluate_checkpoint \
-  --cache_configs="cache_replacement/policy_learning/cache/configs/default.json" \
-  --cache_configs="cache_replacement/policy_learning/cache/configs/eviction_policy/learned.json" \
-  --memtrace_file="cache_replacement/policy_learning/cache/traces/sample_trace.csv" \
-  --config_bindings="associativity=16" \
-  --config_bindings="capacity=2097152" \
-  --config_bindings="eviction_policy.scorer.checkpoint=\"/tmp/sample_model_llc/checkpoints/20000.ckpt\"" \
-  --config_bindings="eviction_policy.scorer.config_path=\"/tmp/sample_model_llc/model_config.json\"" \
-  --warmup_period=0
-```
-
-This logs the final cache hit rate to tensorboard files in the directory
-`/tmp/evaluate_checkpoint`.
-
 # Reference
 https://github.com/google-research/google-research/tree/master/cache_replacement
