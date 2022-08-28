@@ -24,7 +24,7 @@ def save_access_data(file_name, access_list):
 
 
 def gen_data(file_name, req_kind, length, zipf_para, change_para=3):
-    files = np.arange(1, req_kind)
+    files = np.arange(1, req_kind+1)
     # Random ranks. Note that it starts from 1.
     ranks = np.random.permutation(files)
     # print(ranks)
@@ -41,7 +41,7 @@ def gen_data(file_name, req_kind, length, zipf_para, change_para=3):
         pdf /= np.sum(pdf)
         # print(ranks)
         all_req.extend(list(np.random.choice(files, size=length, p=pdf)))
-        zipf_para-=0.3
+        zipf_para-=0.6
         
 
     ## Draw samples
@@ -69,7 +69,7 @@ def gen_data(file_name, req_kind, length, zipf_para, change_para=3):
 def main(argv):
     
 
-    file_name = f'{FLAGS.dataset_name}_{FLAGS.req_kind}_{FLAGS.length}_cpsh'
+    file_name = f'{FLAGS.dataset_name}_{FLAGS.req_kind}_{FLAGS.length}_cps'
     req_kind = FLAGS.req_kind    ## req kind
     length = FLAGS.length//3  ## req num
     param = FLAGS.zipf_para

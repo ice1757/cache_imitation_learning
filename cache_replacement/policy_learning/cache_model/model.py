@@ -122,7 +122,7 @@ class EvictionPolicyModel(nn.Module):
     if cache_pc_embedder is not None:
       query_dim += cache_pc_embedder.embed_dim
     self._history_attention = attention.MultiQueryAttention(
-        attention.GeneralAttention(query_dim, lstm_hidden_size))   ##(64, 128)
+        attention.GeneralAttention(query_dim, lstm_hidden_size))   ##(64, 128) (16, 32)
     # f(h, e(l))
     self._cache_line_scorer = nn.Linear(
         lstm_hidden_size + self._positional_embedder.embed_dim, 1) ## 128+128, 1

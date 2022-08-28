@@ -53,7 +53,7 @@ from cache_replacement.policy_learning.cache_model import model
 from cache_replacement.policy_learning.cache_model import utils
 from cache_replacement.policy_learning.common import config as cfg
 from cache_replacement.policy_learning.common import utils as common_utils
-
+from cache_replacement.policy_learning.common.utils import wrt_txt as wrtxt
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string(
@@ -73,8 +73,8 @@ flags.DEFINE_string(
     " experiment_base_dir/experiment_name.")
 flags.DEFINE_integer("batch_size", 32, "Size of model input batches.")
 flags.DEFINE_integer( # 1e6
-    "total_steps", int(1e4), "Number of training steps to take.")
-flags.DEFINE_integer("tb_freq", 100, "Steps between logging to tensorboard.")
+    "total_steps", int(48000), "Number of training steps to take.")
+flags.DEFINE_integer("tb_freq", 10, "Steps between logging to tensorboard.")
 flags.DEFINE_integer( # 30000
     "small_eval_size", 3000,
     "Number of examples to evaluate on in small evaluations.")
@@ -222,7 +222,7 @@ def evaluate(policy_model, data, step, descriptor, tb_writer, log_dir, k=5):
     hidden_state = None
     metrics = [metric.SuccessRateMetric(k), metric.KendallWeightedTau(), metric.OracleScoreGap()]
     desc = "Evaluating for {}".format(descriptor)
-    tt=1
+    
     for batch in tqdm.tqdm(zip(*subsequences), desc=desc, total=subseq_length): ## batch data[0:30], data[30:60] 一個一個進去
         
         probs, pred_reuse_distances, hidden_state, attention = policy_model( ## 會進 model 的 forward
@@ -309,7 +309,7 @@ def measure_cache_hit_rate(
             oracle_scorer = {
                 "lru": eviction_policy.LRUScorer(),
                 "belady": eviction_policy.BeladyScorer(trace),
-            }[FLAGS.oracle_eviction_policy] ## belady
+            }[FLAGS.oracle_eviction_policy] ## default = belady
             learned_scorer = model_eviction_policy.LearnedScorer(eviction_model)
 
             # Use scoring_policy_index = 0 to always get scores from the oracle scorer
@@ -356,6 +356,7 @@ def measure_cache_hit_rate(
                         cache.read(pc, address, [add_to_data]) ## third para ?? observer、接到cache read->cache set read
                         hit_rates.append(cache.hit_rate_statistic.success_rate())
                         pbar.update(1)
+                logging.info(f'hit:\n{policy}, {memtrace_path}, {hit_rates[-1]}')
 
                 # Post-filter here, since length is unknown if max_examples is not
                 # provided (or trace terminates earlier than max_examples).
@@ -364,7 +365,6 @@ def measure_cache_hit_rate(
                              [hit_rates[-1]])
                 yield data, hit_rates  ## yield 類似 return 暫時的 iterator 搭配 next 使用
 
-        logging.info("Measure end %s, Trace: %s", model_prob, memtrace_path)
         logging.info("Number of unique addresses: %d", len(addresses))
         logging.info("Number of unique pcs: %d", len(pcs))
 
@@ -439,8 +439,6 @@ def main(_):
         dagger_schedule_config.to_file(f)
     dagger_schedule = schedule_from_config(dagger_schedule_config)
 
-    logging.info('dagger_schedule.value%s', dagger_schedule.value(2)) ## (add)
-
     ## Process everything on GPU if available
     device = torch.device("cpu")
     if torch.cuda.is_available():
@@ -450,18 +448,18 @@ def main(_):
     logging.info("Train Trace Name: %s", FLAGS.train_memtrace)
     logging.info("Valid Trace Name: %s", FLAGS.valid_memtrace)
 
-    policy_model = model.EvictionPolicyModel.from_config(
-        model_config).to(device)
+    policy_model = model.EvictionPolicyModel.from_config(model_config).to(device)
     optimizer = optim.Adam(policy_model.parameters(), lr=model_config.get("lr"))
 
     step = 0
-    def get_step(): return step
-    logging.info('schedules step: %s', schedules.ConstantSchedule(0).value(get_step)) ## (add)
+    get_step = lambda: step
+    # logging.info('schedules step: %s', schedules.ConstantSchedule(0).value(get_step)) ## (add)
     oracle_valid_data, hit_rates = next(measure_cache_hit_rate(
         FLAGS.valid_memtrace, cache_config, policy_model,
-        schedules.ConstantSchedule(0), get_step,
+        schedules.ConstantSchedule(0), get_step, ## ConstantSchedule裡面傳多少 值就是多少
         os.path.join(evict_trace_dir, "oracle_valid.txt")))
     log_hit_rates(tb_writer, "cache_hit_rate/oracle_valid", hit_rates, step) ## 紀錄 xxx hit rate
+    
 
     with tqdm.tqdm(total=FLAGS.total_steps) as pbar:
         while True:  # loop for waiting until steps == FLAGS.total_steps
@@ -477,12 +475,12 @@ def main(_):
             #   - As k gets large, training becomes slower, as we must perform k times
             #   as much collecting work than training work.
             max_examples = (dagger_schedule_config.get("update_freq") *
-                            FLAGS.collection_multiplier * FLAGS.batch_size) ## 10000*5*32
+                            FLAGS.collection_multiplier * FLAGS.batch_size) ## 10000*5*32 -> 10000即 algo1的mod 5000
             train_data_generator = measure_cache_hit_rate(
                 FLAGS.train_memtrace, cache_config, policy_model, dagger_schedule,
                 get_step, os.path.join(
                     evict_trace_dir, "mixture-train-{}.txt"), max_examples=max_examples)
-            tmp=1
+            
             for train_data, hit_rates in train_data_generator:
                 
                 log_hit_rates(tb_writer, "cache_hit_rate/train_mixture_policy", hit_rates, step)
@@ -512,7 +510,7 @@ def main(_):
                         # Log the cache hit rates on portions of train / valid
                         _, hit_rates = next(measure_cache_hit_rate(
                             FLAGS.train_memtrace, cache_config, policy_model,
-                            schedules.ConstantSchedule(1), get_step,
+                            schedules.ConstantSchedule(1), get_step, ## ConstantSchedule(1).value出來都會是1
                             os.path.join(
                                 evict_trace_dir, "train{}-{}.txt".format(suffix, step)),
                             max_examples=eval_size, use_oracle_scores=False))
@@ -522,7 +520,7 @@ def main(_):
                         # log with on-policy scores.
                         on_policy_valid_data, hit_rates = next(measure_cache_hit_rate(
                             FLAGS.valid_memtrace, cache_config, policy_model,
-                            schedules.ConstantSchedule(1), get_step,
+                            schedules.ConstantSchedule(1), get_step, ## ConstantSchedule(1).value出來都會是1 傳到後面policy就是選belady
                             os.path.join(
                                 evict_trace_dir, "valid{}-{}.txt".format(suffix, step)),
                             max_examples=eval_size))
@@ -538,14 +536,11 @@ def main(_):
                         evaluate_helper(len(oracle_valid_data), "_full")
 
                     if step % FLAGS.save_freq == 0 and step != 0:
-                        save_path = os.path.join(
-                            checkpoints_dir, "{}.ckpt".format(step))
+                        save_path = os.path.join(checkpoints_dir, "{}.ckpt".format(step))
                         with open(save_path, "wb") as save_file:
                             checkpoint_buffer = io.BytesIO()
-                            torch.save(policy_model.state_dict(),
-                                       checkpoint_buffer)
-                            logging.info(
-                                "Saving model checkpoint to: %s", save_path)
+                            torch.save(policy_model.state_dict(), checkpoint_buffer)
+                            logging.info("Saving model checkpoint to: %s", save_path)
                             save_file.write(checkpoint_buffer.getvalue())
 
                     optimizer.zero_grad()
@@ -558,8 +553,7 @@ def main(_):
                     step += 1
 
                     if step % FLAGS.tb_freq == 0:
-                        utils.log_scalar(
-                            tb_writer, "loss/total", total_loss, step)
+                        utils.log_scalar(tb_writer, "loss/total", total_loss, step)
                         for loss_name, loss_value in losses.items():
                             utils.log_scalar(
                                 tb_writer, "loss/{}".format(loss_name), loss_value, step)
@@ -568,6 +562,7 @@ def main(_):
                         return
 
                     # Break out of inner-loop to get next set of k * update_freq batches
+                    ## 跳開 490 ，483 找下個 10000 演算法 3
                     if batch_num == dagger_schedule_config.get("update_freq"):
                         break
 

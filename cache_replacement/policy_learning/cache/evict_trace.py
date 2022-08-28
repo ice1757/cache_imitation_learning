@@ -96,13 +96,13 @@ class EvictionTrace(object):
       entry (EvictionEntry): entry generated from a memory access.
     """
     json.dump({
-        "pc": hex(entry.cache_access.pc),
-        "address": hex(entry.cache_access.address),
+        "pc": (entry.cache_access.pc),
+        "address": (entry.cache_access.address),
         "set_id": bin(entry.cache_access.set_id),
-        "cache_lines": [(hex(line), hex(pc))
+        "cache_lines": [((line), (pc))
                         for line, pc in entry.cache_access.cache_lines],
         "access_history": [
-            (hex(address), hex(pc))
+            ((address), (pc))
             for address, pc in entry.cache_access.access_history],
         "evict": entry.eviction_decision.evict,
         # Serialize items instead of dict to prevent json from converting int

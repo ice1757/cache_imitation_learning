@@ -74,9 +74,9 @@ flags.DEFINE_string(
 flags.DEFINE_integer("batch_size", 32, "Size of model input batches.")
 flags.DEFINE_integer( # 1e6
     "total_steps", int(48000), "Number of training steps to take.")
-flags.DEFINE_integer("tb_freq", 100, "Steps between logging to tensorboard.")
+flags.DEFINE_integer("tb_freq", 10, "Steps between logging to tensorboard.")
 flags.DEFINE_integer( # 30000
-    "small_eval_size", 3000,
+    "small_eval_size", 9000,
     "Number of examples to evaluate on in small evaluations.")
 flags.DEFINE_integer( # 4000
     "small_eval_freq", 400,
@@ -240,14 +240,14 @@ def evaluate(policy_model, data, step, descriptor, tb_writer, log_dir, k=5):
         for m in metrics:
             m.update(probs, eviction_mask, oracle_scores)
 
-        for i in range(FLAGS.batch_size):
-            logs[i].append(pretty_print(
-                batch[i], probs[i], list(next(attention)), pred_reuse_distances[i]))
+        # for i in range(FLAGS.batch_size):
+        #     logs[i].append(pretty_print(
+        #         batch[i], probs[i], list(next(attention)), pred_reuse_distances[i]))
 
-    filename = os.path.join(log_dir, "{}-{}.txt".format(descriptor, step))
-    with open(filename, "w") as f:
-        for log in logs:
-            f.writelines(entry + "\n" for entry in log)
+    # filename = os.path.join(log_dir, "{}-{}.txt".format(descriptor, step))
+    # with open(filename, "w") as f:
+    #     for log in logs:
+    #         f.writelines(entry + "\n" for entry in log)
 
     for m in metrics:
         m.write_to_tensorboard(tb_writer, descriptor, step)
@@ -362,6 +362,7 @@ def measure_cache_hit_rate(
                 skip_len = len(hit_rates) // k
                 hit_rates = (hit_rates[skip_len:skip_len * (k - 1) + 1:skip_len] +
                              [hit_rates[-1]])
+                logging.info(f'data len: {len(data)}, measure save: {eviction_trace_path}\n')
                 yield data, hit_rates  ## yield 類似 return 暫時的 iterator 搭配 next 使用
 
         logging.info("Number of unique addresses: %d", len(addresses))
@@ -474,7 +475,7 @@ def main(_):
             #   - As k gets large, training becomes slower, as we must perform k times
             #   as much collecting work than training work.
             max_examples = (dagger_schedule_config.get("update_freq") *
-                            FLAGS.collection_multiplier * FLAGS.batch_size) ## 10000*5*32
+                            FLAGS.collection_multiplier * FLAGS.batch_size) ## 10000*5*32 -> 10000即 algo1的mod 5000
             train_data_generator = measure_cache_hit_rate(
                 FLAGS.train_memtrace, cache_config, policy_model, dagger_schedule,
                 get_step, os.path.join(
@@ -497,13 +498,13 @@ def main(_):
                           eval_size (int): the number of examples to evaluate on.
                           suffix (str): appended to all logging and tensorboard paths.
                         """
-                        evaluate(policy_model, oracle_valid_data[-eval_size:], step,
-                                 "off_policy_valid" + suffix, tb_writer, predictions_dir)
-                        # train_data is defined in the loop, but evaluate_helper is only
+                        # evaluate(policy_model, oracle_valid_data[-eval_size:], step,
+                        #          "off_policy_valid" + suffix, tb_writer, predictions_dir)
+                        ## train_data is defined in the loop, but evaluate_helper is only
                         # called in the same loop iteration.
                         # pylint: disable=cell-var-from-loop
-                        evaluate(policy_model, train_data[-eval_size:],
-                                 step, "train" + suffix, tb_writer, predictions_dir)
+                        # evaluate(policy_model, train_data[-eval_size:],
+                        #          step, "train" + suffix, tb_writer, predictions_dir)
                         # pylint: enable=cell-var-from-loop
 
                         # Log the cache hit rates on portions of train / valid
@@ -534,13 +535,13 @@ def main(_):
                     if step % FLAGS.full_eval_freq == 0:
                         evaluate_helper(len(oracle_valid_data), "_full")
 
-                    if step % FLAGS.save_freq == 0 and step != 0:
-                        save_path = os.path.join(checkpoints_dir, "{}.ckpt".format(step))
-                        with open(save_path, "wb") as save_file:
-                            checkpoint_buffer = io.BytesIO()
-                            torch.save(policy_model.state_dict(), checkpoint_buffer)
-                            logging.info("Saving model checkpoint to: %s", save_path)
-                            save_file.write(checkpoint_buffer.getvalue())
+                    # if step % FLAGS.save_freq == 0 and step != 0:
+                    #     save_path = os.path.join(checkpoints_dir, "{}.ckpt".format(step))
+                    #     with open(save_path, "wb") as save_file:
+                    #         checkpoint_buffer = io.BytesIO()
+                    #         torch.save(policy_model.state_dict(), checkpoint_buffer)
+                    #         logging.info("Saving model checkpoint to: %s", save_path)
+                    #         save_file.write(checkpoint_buffer.getvalue())
 
                     optimizer.zero_grad()
                     losses = policy_model.loss(
@@ -561,6 +562,7 @@ def main(_):
                         return
 
                     # Break out of inner-loop to get next set of k * update_freq batches
+                    ## 跳開 490 ，483 找下個 10000 演算法 3
                     if batch_num == dagger_schedule_config.get("update_freq"):
                         break
 

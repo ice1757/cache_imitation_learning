@@ -9,21 +9,22 @@ from absl import flags
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('dataset_name', 'test_dataset', 'dataset name')
-flags.DEFINE_integer('req_kind', 1000, 'number of requests kind', lower_bound=10)
-flags.DEFINE_integer('length', 3000, 'requests length', lower_bound=10)
+flags.DEFINE_integer('req_kind', 1000, 'number of requests kind', lower_bound=1)
+flags.DEFINE_integer('length', 3000, 'requests length', lower_bound=1)
 flags.DEFINE_float('zipf_para', 1.3, 'zipf parameter')
 flags.DEFINE_integer('change_rank', None, 'popularity ranking change length')
 
 
 def save_access_data(file_name, access_list):
-    f = open('./dataset/req_trace/'+file_name+'.txt', "w")
+    f = open(file_name+'.txt', "w")
     f.write(str(access_list))
     f.close()
     print('successfully save dataset to', './dataset/'+file_name+'.txt')
 
 
 def gen_data(file_name, req_kind, length, zipf_para, change_rank):
-    files = np.arange(1, req_kind)
+    files = np.arange(1, req_kind+1)
+    
     # Random ranks. Note that it starts from 1.
     ranks = np.random.permutation(files)
     # print(ranks)
@@ -61,15 +62,15 @@ def gen_data(file_name, req_kind, length, zipf_para, change_rank):
         df_train = pd.concat((df_train, tmp_train), axis = 0)
         df_valid = pd.concat((df_valid, tmp_valid), axis = 0)
     
-    save_name = f'./dataset/req_trace/{file_name}'
-    df_train.to_csv(f'{save_name}_train.csv', index = False, header = False)
-    df_valid.to_csv(f'{save_name}_valid.csv', index = False, header = False)
+    
+    df_train.to_csv(f'{file_name}_train.csv', index = False, header = False)
+    df_valid.to_csv(f'{file_name}_valid.csv', index = False, header = False)
     
 
 def main(argv):
     
 
-    file_name = f'{FLAGS.dataset_name}_{FLAGS.req_kind}_{FLAGS.length}_cr{FLAGS.change_rank}'
+    file_name = f'./dataset/req_trace/{FLAGS.dataset_name}_{FLAGS.req_kind}_{FLAGS.length}_cr{FLAGS.change_rank}'
     req_kind = FLAGS.req_kind    ## req kind
     length = FLAGS.length  ## req num
     param = FLAGS.zipf_para

@@ -79,7 +79,7 @@ class MemoryTrace(object):
             self._look_ahead_buffer.append((pc, address))
             self.cnt_address.add(address)
             # Align to cache line
-            self._access_times[address >> self._offset_bits].append( ## >> 除、紀錄每個addr用到幾次
+            self._access_times[address].append( ## >> 除、紀錄每個addr用到幾次
                 len(self._look_ahead_buffer) + self._num_next_calls)
         except StopIteration:
             self._reader_exhausted = True
@@ -93,7 +93,7 @@ class MemoryTrace(object):
         self._num_next_calls += 1
         pc, address = self._look_ahead_buffer.popleft()
         # Align to cache line
-        aligned_address = address >> self._offset_bits
+        aligned_address = address # >> self._offset_bits
         self._access_times[aligned_address].popleft()
 
         # Memory optimization: discard keys that have no current access times.

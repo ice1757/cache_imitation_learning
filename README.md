@@ -4,6 +4,12 @@
 	2. Import至Vmware Workstation
 	3. Open Terminal
   ```
+  若無網卡或網路，輸入以下指令
+  sudo service network-manager stop
+  sudo rm /var/lib/NetworkManager/NetworkManager.state
+  sudo service network-manager start
+  ```
+  ```
   cd Document
   git clone https://github.com/ice1757/cache_imitation_learning.git
   ```
@@ -24,7 +30,7 @@
 	pip install -e git+https://github.com/openai/baselines.git@ea25b9e8b234e6ee1bca43083f8f3cf974143998#egg=baselines
 	```
 # Collecting Traces
-- [generate program memory trace](https://github.com/google-research/google-research/tree/master/cache_replacement#collecting-traces)
+- (參考，並無在實驗中使用)[generate program memory trace](https://github.com/google-research/google-research/tree/master/cache_replacement#collecting-traces)
 - ```
   # Current Working directory is cache_imitaion_learning
   cd /cache_replacement/gen_trace
@@ -32,16 +38,16 @@
 - generate zipf trace
   - change rank
   ```
-  python gen_zipf_c_rank.py \
+  python gen_dyna_zipf_1.py \
     --dataset_name=<檔案名稱> \
     --req_kind=<request種類> \
     --length=<request長度> \
     --zipf_para=<zipf參數> \
     --change_rank=<rank變化週期>
   ```
-  - change zipf parameter
+  - change zipf parameter and rank
   ```
-  python gen_zipf_c_para.py \
+  python gen_dyna_zipf_2.py \
     --dataset_name=<檔案名稱> \
     --req_kind=<request種類> \
     --length=<request長度> \
@@ -49,7 +55,9 @@
   ```
 - generate snm trace
   ```
-  python snm_1.py
+  python snm_1.py 
+    --dataset_name='snm' \
+    --req_kind=50
   ```
 - 產生的 trace 需移至"cache_imitation_learning/cache_replacement/policy_learning/cache/traces"
 
@@ -64,6 +72,7 @@
       associativity = 10
 
 # Cache Replacement Algorithm
+(研究中無使用，供參考)
 - Simple Cache Replacement Algorithm Test
 ```
 ## 測試的Trace.csv放入 cache_imitation_learning/cache_replacement/environment/trace
@@ -77,9 +86,8 @@ python main.py <方法> <Trace name>
 - 修改Cache Environment Hyperparameter
   - Edit cache_imitation_learning/cache_replacement/environment/spec_llc.json
 # Belady Cache Simulation Usage
-
+(研究中無使用，供參考)  
 Example usage with Belady's as the policy, and default SPEC cache configs:
-
 ```
 # Current working directory is cache_imitation_learning
 # start anaconda
@@ -108,13 +116,13 @@ the sample trace:
 # start anaconda
 conda activate imcr
 python -m cache_replacement.policy_learning.cache_model.main \
-  --experiment_base_dir=/tmp \
-  --experiment_name=sample_model_llc \
+  --experiment_base_dir=/log \
+  --experiment_name=snm_50_x1 \
   --cache_configs=cache_replacement/policy_learning/cache/configs/default.json \
   --model_bindings="loss=[\"ndcg\", \"reuse_dist\"]" \
   --model_bindings="address_embedder.max_vocab_size=5000" \
-  --train_memtrace=cache_replacement/policy_learning/cache/traces/sample_trace.csv \
-  --valid_memtrace=cache_replacement/policy_learning/cache/traces/sample_trace.csv
+  --train_memtrace=cache_replacement/policy_learning/cache/traces/snm_50_x1_train.csv \
+  --valid_memtrace=cache_replacement/policy_learning/cache/traces/snm_50_x1_valid.csv
 ```
 
 The number of learned embeddings can be set with the `--model_bindings` flag
@@ -125,6 +133,7 @@ Hit rate statistics and accuracies will be logged to tensorboard files in
 `/tmp/sample_model_llc`.
 
 # Ablation
+(研究中無使用，供參考)  
 We also provide commands to run the various ablations reported in the paper.
 Training with the byte embedder model:
 
